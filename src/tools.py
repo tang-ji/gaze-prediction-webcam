@@ -16,9 +16,12 @@ class LandmarksDetector:
     
 landmarks_detector = LandmarksDetector("model/shape_predictor_5_face_landmarks.dat")
 
-def draw_image(image):
+def draw_image(image, t=False):
     _, ax = plt.subplots(figsize=(8,8), dpi=80)
-    ax.imshow(image)
+    if t:
+        ax.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    else:
+        ax.imshow(image)
     ax.set_yticks([])
     ax.set_xticks([])
 
