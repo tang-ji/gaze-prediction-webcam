@@ -8,13 +8,15 @@ class LandmarksDetector:
         self.shape_predictor = dlib.shape_predictor(predictor_model_path)
 
     def get_landmarks(self, image):
-        dets = self.detector(image, 1)
-        ret = []
-        for detection in dets:
-            ret += [[item.x, item.y] for item in self.shape_predictor(image, detection).parts()]
-        return np.array(ret)
+        try:
+            frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        except:
+            frame = image
+        faces = self.detector(frame)
+        return np.array([[item.x, item.y] for item in self.shape_predictor(frame, faces[0]).parts()])
     
-landmarks_detector = LandmarksDetector("model/shape_predictor_5_face_landmarks.dat")
+# landmarks_detector = LandmarksDetector("model/shape_predictor_5_face_landmarks.dat")
+landmarks_detector = LandmarksDetector("model/shape_predictor_68_face_landmarks.dat")
 
 def draw_image(image, t=False):
     _, ax = plt.subplots(figsize=(8,8), dpi=80)
