@@ -5,10 +5,10 @@ from src.config import *
 
 import numpy as np
 
-right_input = Input(shape=(eye_size[0], eye_size[1], n_channel))
-left_input = Input(shape=(eye_size[0], eye_size[1], n_channel))
-face_input = Input(shape=(face_size[0], face_size[1], n_channel))
-mask_input = Input(shape=(mask_size[0], mask_size[1], n_channel))
+right_input = Input(shape=(eye_size[1], eye_size[0], n_channel))
+left_input = Input(shape=(eye_size[1], eye_size[0], n_channel))
+face_input = Input(shape=(face_size[1], face_size[0], n_channel))
+mask_input = Input(shape=(mask_size[1], mask_size[0], n_channel))
 
 conv1_right = Conv2D(conv1_eye_out, kernel_size=conv1_eye_size, strides=conv1_eye_strides)(right_input)
 conv1_pool_right = MaxPooling2D(pool_size=pool1_eye_size, strides=pool1_eye_stride)(conv1_right)
@@ -24,7 +24,7 @@ conv1_face = Conv2D(conv1_face_out, kernel_size=conv1_face_size, strides=conv1_f
 conv1_pool_face = MaxPooling2D(pool_size=pool1_face_size, strides=pool1_face_stride)(conv1_face)
 conv2_face = Conv2D(conv2_face_out, kernel_size=conv2_eye_size, strides=conv2_face_strides)(conv1_pool_face)
 conv2_pool_face = MaxPooling2D(pool_size=pool2_face_size, strides=pool2_face_stride)(conv2_face)
-conv3_face = Conv2D(conv3_face_out, kernel_size=conv3_eye_size)(conv2_pool_face)
+conv3_face = Conv2D(conv3_face_out, kernel_size=conv3_face_size)(conv2_pool_face)
 conv3_pool_face = MaxPooling2D(pool_size=pool3_face_size, strides=pool3_face_stride)(conv3_face)
 
 conv1_mask = Conv2D(conv1_mask_out, kernel_size=conv1_mask_size, strides=conv1_mask_strides)(mask_input)
