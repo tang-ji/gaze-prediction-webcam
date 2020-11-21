@@ -27,22 +27,25 @@ def draw_image(image, t=False):
     ax.set_yticks([])
     ax.set_xticks([])
 
-def get_bound(points):
+def get_bound(points, a=0.1, b=0.3):
     x_max = np.max(points, axis=0)[0]
     x_min = np.min(points, axis=0)[0]
     y_max = np.max(points, axis=0)[1]
     y_min = np.min(points, axis=0)[1]
-    x_d = (x_max-x_min)*0.1
+    x_d = (x_max-x_min)*a
     x_min -= x_d
     x_max += x_d
-    y_d = (y_max-y_min)*0.3
+    y_d = (y_max-y_min)*b
     y_min -= y_d
-    y_max -= y_d
+    y_max += y_d
     return int(x_max), int(x_min), int(y_max), int(y_min)
 
 def get_box(bound):
     x_max, x_min, y_max, y_min = bound
     return [(x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)]
+
+def crop_box(img, bound):
+    return np.copy(img[bound[3]:bound[2], bound[1]:bound[0]])
 
 def warpBox(image,
             box,

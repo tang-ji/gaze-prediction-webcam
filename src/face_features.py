@@ -2,51 +2,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 
-face_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_frontalface_default.xml')
-eye_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_eye.xml')
+from src.tools import *
+from src.config import *
 
-def extract_face_features(face, img, gray):
-    [x,y,w,h] = face
-    roi_gray = gray[y:y+h, x:x+w]
-    face_image = np.copy(img[y:y+h, x:x+w])
-    
-    eyes = eye_cascade.detectMultiScale(roi_gray)
-    eye_images = []
-    for (ex,ey,ew,eh) in eyes:
-        eye_images.append(np.copy(img[y+ey:y+ey+eh,x+ex:x+ex+ew]))
-                
-    roi_color = img[y:y+h, x:x+w]
-    for (ex,ey,ew,eh) in eyes:
-        return face_image, eye_images
-
-def get_face_grid(face, frameW, frameH, gridSize):
-    faceX,faceY,faceW,faceH = face
-    return faceGridFromFaceRect(frameW, frameH, gridSize, gridSize, faceX, faceY, faceW, faceH, False)
-
-def extract_image_features(full_img_path):
+def extract_image_features(img):
     try:
-        img = cv2.imread(full_img_path)
-    except:
-        img = full_img_path
-    gray = img
-    try:
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    except:
-        pass
-    face_detections = face_cascade.detectMultiScale(gray, 1.3, 5)
-    
-    try:
-        [x,y,w,h] = face_detections[0]
-        face = [x,y,w,h]
-        cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
-        face_image, eye_images = extract_face_features(face, img, gray)
-        face_grid = get_face_grid(face, img.shape[1], img.shape[0], 25)
-        face_features = [face_image, eye_images, face_grid]
-        return face_features
-    except:
+        preds = landmarks_detector.get_landmarks(img)
+        left_eye = get_bound(preds[36:42], 0.1, 0.4)
+        right_eye = get_bound(preds[42:48], 0.1, 0.4)
+        face = get_bound(preds, 0, 0)
+        eye_images = [crop_box(img, left_eye), crop_box(img, right_eye)]
+        face_image = crop_box(img, face)
+        frameC = 1
+        if len(img.shape) == 3 and img.shape[2] == 3:
+            frameC = 3
+        face_grid = get_face_grid([face[1], face[3], face[0]-face[1], face[2]-face[3]], img.shape[1], img.shape[0], frameC, mask_size)
+        return [face_image, eye_images, face_grid]
+    except Exception as e:
+        print(e)
         return None
 
-gridSize = 25
+def get_face_grid(face, frameW, frameH, frameC, mask_size):
+    faceX,faceY,faceW,faceH = face
+    return faceGridFromFaceRect(frameW, frameH, frameC, mask_size[0], mask_size[1], faceX, faceY, faceW, faceH, False)
+
 ####################
 # Given face detection data, generate face grid data.
 #
@@ -59,7 +38,7 @@ gridSize = 25
 # - parameterized: Whether to actually output the grid or just the
 #     [x y w h] of the 1s square within the gridW x gridH grid.
 ########
-def faceGridFromFaceRect(frameW, frameH, gridW, gridH, labelFaceX, labelFaceY, labelFaceW, labelFaceH, parameterized):
+def faceGridFromFaceRect(frameW, frameH, frameC, gridW, gridH, labelFaceX, labelFaceY, labelFaceW, labelFaceH, parameterized):
 
     scaleX = gridW / frameW
     scaleY = gridH / frameH
@@ -90,27 +69,18 @@ def faceGridFromFaceRect(frameW, frameH, gridW, gridH, labelFaceX, labelFaceY, l
         yHi = int(min(gridH, max(0, yHi)))
 
         faceLocation = np.ones((yHi - yLo, xHi - xLo))
-        grid[yLo:yHi, xLo:xHi] = faceLocation
-
-        # Flatten the grid.
-        grid = np.transpose(grid)
-        labelFaceGrid = grid.flatten()
-        
-    return labelFaceGrid
+        grid[yLo:yHi, -xHi:-xLo] = faceLocation
+    
+    if frameC == 3:
+        return cv2.cvtColor(np.array(grid*255, dtype=np.uint8),cv2.COLOR_GRAY2RGB)
+    else:
+        return np.array(grid*255, dtype=np.uint8)
 ######################
+
 def set_title_and_hide_axis(title):
     plt.title(title)
     plt.axes().get_xaxis().set_visible(False)
     plt.axes().get_yaxis().set_visible(False)
-
-def render_face_grid(face_grid):
-    face_grid = np.asarray(face_grid)
-    to_print = np.copy(face_grid)
-    result_image = np.copy(to_print).reshape(25, 25).transpose()
-    plt.figure()
-    set_title_and_hide_axis('Face grid')
-#     print(result_image.shape)
-    plt.imshow(result_image)
 
 def show_extraction_results(face_features):
     face_features = np.asarray(face_features)
@@ -120,11 +90,21 @@ def show_extraction_results(face_features):
     set_title_and_hide_axis('Extracted face image')
     plt.imshow(cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB), interpolation="bicubic")
     plt.figure()
-    render_face_grid(face_grid)
+    set_title_and_hide_axis('Face grid')
+    plt.imshow(face_grid)
 
     for eye_image in eye_images:
         plt.figure()
 
-        #print('eye image after extraction')
         set_title_and_hide_axis('Extracted eye image')
         plt.imshow(cv2.cvtColor(eye_image, cv2.COLOR_BGR2RGB), interpolation="bicubic")
+        
+def merge_results(window, face_features):
+    if face_features is not None:
+        if len(face_features[1]) > 0:
+            window[:img_size[0], :img_size[1]] = cv2.resize(face_features[1][0], img_size, interpolation = cv2.INTER_AREA)
+            window[img_size[0]:, :img_size[1]] = cv2.resize(face_features[1][1], img_size, interpolation = cv2.INTER_AREA)
+        if face_features[0] is not None:
+            window[:img_size[0], img_size[1]:] = cv2.resize(face_features[0], img_size, interpolation = cv2.INTER_AREA)
+        if face_features[2] is not None:
+            window[img_size[0]:, img_size[1]:] = cv2.resize(face_features[2], img_size, interpolation = cv2.INTER_AREA)
